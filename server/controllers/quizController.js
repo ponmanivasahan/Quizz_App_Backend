@@ -1,144 +1,36 @@
-const db = require("../config/db");
-
-const createQuiz = (req, res) => {
-    const { title, description, duration, total_marks } = req.body;
-
-    if (!title || !duration || !total_marks) {
-        return res.status(400).json({
-            message: "All required fields are mandatory"
-        });
-    }
-
-    const sql = `
-        INSERT INTO quizzes
-        (title, description, duration, total_marks, created_by)
-        VALUES (?, ?, ?, ?, ?)
-    `;
-
-    db.query(
-        sql,
-        [
-            title,
-            description,
-            duration,
-            total_marks,
-            req.user.id
-        ],
-        (err) => {
-            if (err) {
-                return res.status(500).json(err);
-            }
-
-            res.status(201).json({
-                message: "Quiz Created Successfully"
-            });
-        }
-    );
+const { Quiz, Question } = require('../models');
+exports.createQuiz = async (req, res, next) => {
+    try {
+        const quiz = await Quiz.create({ ...req.body, createdBy: req.user.id });
+        res.status(201).json({ success: true, message: 'Quiz created successfully', data: quiz });
+    } catch (error) { next(error); }
 };
-
-const getAllQuizzes  = (req,res)=>{
-      const sql = `
-        SELECT *FROM quizzes
-    `;
-    db.query(sql, (err, result) => {
-        if (err) {
-            return res.status(500).json(err);
-        }
-        return res.status(200).json(result);
-    });
-
+exports.getQuizzes = async (req, res, next) => {
+    try {
+        const quizzes = await Quiz.findAll();
+        res.json({ success: true, data: quizzes });
+    } catch (error) { next(error); }
 };
-const getQuizById = (req, res) => {
-
-    const { id } = req.params;
-
-    db.query(
-        "SELECT * FROM quizzes WHERE id = ?",
-        [id],
-        (err, result) => {
-
-            if (err) {
-                return res.status(500).json(err);
-            }
-
-            if (result.length === 0) {
-                return res.status(404).json({
-                    message: "Quiz Not Found"
-                });
-            }
-
-            res.json(result[0]);
-
-        }
-    );
+exports.getQuiz = async (req, res, next) => {
+    try {
+        const quiz = await Quiz.findByPk(req.params.id, { include: ['questions'] });
+        if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
+        res.json({ success: true, data: quiz });
+    } catch (error) { next(error); }
 };
-const updateQuiz = (req, res) => {
-
-    const { id } = req.params;
-
-    const {
-        title,
-        description,
-        duration,
-        total_marks,
-        status
-    } = req.body;
-
-    const sql = `
-        UPDATE quizzes
-        SET
-            title = ?,
-            description = ?,
-            duration = ?,
-            total_marks = ?,
-            status = ?
-        WHERE id = ?
-    `;
-
-    db.query(
-        sql,
-        [
-            title,
-            description,
-            duration,
-            total_marks,
-            status,
-            id
-        ],
-        (err) => {
-
-            if (err) {
-                return res.status(500).json(err);
-            }
-
-            res.json({
-                message: "Quiz Updated Successfully"
-            });
-
-        }
-    );
-
+exports.updateQuiz = async (req, res, next) => {
+    try {
+        const quiz = await Quiz.findByPk(req.params.id);
+        if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
+        await quiz.update(req.body);
+        res.json({ success: true, message: 'Quiz updated', data: quiz });
+    } catch (error) { next(error); }
 };
-const deleteQuiz = (req, res) => {
-
-    const { id } = req.params;
-
-    db.query(
-        "DELETE FROM quizzes WHERE id = ?",
-        [id],
-        (err) => {
-
-            if (err) {
-                return res.status(500).json(err);
-            }
-
-            res.json({
-                message: "Quiz Deleted Successfully"
-            });
-
-        }
-    );
-
+exports.deleteQuiz = async (req, res, next) => {
+    try {
+        const quiz = await Quiz.findByPk(req.params.id);
+        if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
+        await quiz.destroy();
+        res.json({ success: true, message: 'Quiz deleted' });
+    } catch (error) { next(error); }
 };
-
-module.exports = {createQuiz,getAllQuizzes,getQuizById,updateQuiz,deleteQuiz};

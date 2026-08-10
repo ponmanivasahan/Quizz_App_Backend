@@ -1,18 +1,12 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const verifyToken = require("../middleware/verifyToken");
-const authorizeRole = require("../middleware/authorizeRole");
+const { getUsers, getUser, updateUser, deleteUser } = require('../controllers/userController');
+const { protect } = require('../middleware/authMiddleware');
+const { adminOnly } = require('../middleware/roleMiddleware');
 
-router.get("/profile",verifyToken,(req,res)=>{
-    res.status(200).json({
-        message:"Profile Data",
-        user:req.user
-    })
-})
-router.get("/admin",verifyToken,authorizeRole("admin"),(req,res)=>{
-    res.status(200).json({
-        message:"Admin Data",
-        user:req.user
-    })
-})
-module.exports=router;
+router.get('/', protect, adminOnly, getUsers);
+router.get('/:id', protect, adminOnly, getUser);
+router.put('/:id', protect, updateUser);
+router.delete('/:id', protect, adminOnly, deleteUser);
+
+module.exports = router;

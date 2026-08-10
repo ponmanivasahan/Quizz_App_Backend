@@ -1,22 +1,38 @@
-const express = require("express");
-require("dotenv").config();
-const cors = require("cors");
-const db = require("./config/db");
-const authRoutes = require("./routes/authRoutes");
-const userRoutes = require("./routes/userRoutes")
-const quizRoutes = require("./routes/quizRoutes");
-const questionRoutes = require("./routes/questionRoutes");
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+dotenv.config();
+const { sequelize } = require('./models');
+const { errorHandler } = require('./middleware/errorMiddleware');
+
+
 const app = express();
+
 app.use(cors());
 app.use(express.json());
-app.use("/api/auth", authRoutes);
-app.use("/api/user",userRoutes);
-app.use("/api/quizzes", quizRoutes);
-app.use("/api/questions", questionRoutes);
-app.get("/",(req,res)=>{
-    res.send("Quiz Management API running")
+
+// Set up routes
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/quizzes', require('./routes/quizRoutes'));
+app.use('/api/questions', require('./routes/questionRoutes'));
+app.use('/api/attempts', require('./routes/attemptRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/leaderboard', require('./routes/leaderboardRoutes'));
+
+app.get('/', (req, res) => {
+    res.send('Quiz API is running...');
 });
-const port = process.env.PORT || 5000;
-app.listen(port,()=>{
-    console.log(`Server running on port${port}`)
+
+// Error handling middleware
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 5000;
+
+sequelize.sync().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}).catch(err => {
+    console.error('Unable to connect to the database:', err);
 });

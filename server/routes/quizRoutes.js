@@ -1,13 +1,19 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const verifyToken = require("../middleware/verifyToken");
-const authorizeRole = require("../middleware/authorizeRole");
-const { createQuiz, getAllQuizzes, getQuizById, updateQuiz, deleteQuiz } = require("../controllers/quizController");
+const { createQuiz, getQuizzes, getQuiz, updateQuiz, deleteQuiz } = require('../controllers/quizController');
+const { createQuestion, getQuestions } = require('../controllers/questionController');
+const { protect } = require('../middleware/authMiddleware');
+const { adminOnly } = require('../middleware/roleMiddleware');
 
-router.post("/create", verifyToken, authorizeRole("admin"), createQuiz);
-router.get("/", verifyToken, getAllQuizzes);
-router.get("/:id", verifyToken, getQuizById);
-router.put("/:id", verifyToken, authorizeRole("admin"), updateQuiz);
-router.delete("/:id", verifyToken, authorizeRole("admin"), deleteQuiz);
+router.post('/', protect, adminOnly, createQuiz);
+router.get('/', protect, getQuizzes);
+
+// Nested routes for questions MUST come before /:id to prevent matching issues
+router.post('/:quizId/questions', protect, adminOnly, createQuestion);
+router.get('/:quizId/questions', protect, getQuestions);
+
+router.get('/:id', protect, getQuiz);
+router.put('/:id', protect, adminOnly, updateQuiz);
+router.delete('/:id', protect, adminOnly, deleteQuiz);
 
 module.exports = router;

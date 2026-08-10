@@ -1,104 +1,45 @@
-const db = require("../config/db");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+const { User } = require('../models');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
-const register = async (req, res) => {
+const generateToken = (id) => {
+    return jwt.sign({ id }, process.env.JWT_SECRET || 'secret', { expiresIn: process.env.JWT_EXPIRES_IN || '1d' });
+};
+
+exports.register = async (req, res, next) => {
     try {
-        const { full_name, email, password, role } = req.body;
-
-        if (!full_name || !email || !password) {
-            return res.status(400).json({
-                message: "All fields are required"
-            });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const sql = `
-            INSERT INTO users(full_name, email, password, role)
-            VALUES (?, ?, ?, ?)
-        `;
-
-        db.query(
-            sql,
-            [
-                full_name,
-                email,
-                hashedPassword,
-                role || "student"
-            ],
-            (err, result) => {
-                if (err) {
-                    return res.status(500).json(err);
-                }
-
-                return res.status(201).json({
-                    message: "User Registered Successfully"
-                });
-            }
-        );
-
-    } catch (error) {
-        return res.status(500).json(error);
-    }
-};
-const login = (req, res) => {
-
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({
-            message: "Email and Password are required"
+        const { name, email, password } = req.body;
+        const userExists = await User.findOne({ where: { email } });
+        if (userExists) return res.status(400).json({ success: false, message: 'User already exists' });
+        
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        
+        const user = await User.create({ name, email, password: hashedPassword, role: 'student' });
+        res.status(201).json({
+            success: true,
+            message: 'User registered successfully',
+            data: { id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user.id) }
         });
-    }
-
-    const sql = "SELECT * FROM users WHERE email = ?";
-
-    db.query(sql, [email], async (err, result) => {
-
-        if (err) {
-            return res.status(500).json(err);
-        }
-
-        if (result.length === 0) {
-            return res.status(404).json({
-                message: "User not found"
-            });
-        }
-
-        const user = result[0];
-
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            return res.status(401).json({
-                message: "Invalid Password"
-            });
-        }
-
-        const token = jwt.sign(
-            {
-                id: user.id,
-                role: user.role
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "1d"
-            }
-        );
-
-        res.status(200).json({
-            message: "Login Successful",
-            token,
-            user: {
-                id: user.id,
-                full_name: user.full_name,
-                email: user.email,
-                role: user.role
-            }
-        });
-
-    });
-
+    } catch (error) { next(error); }
 };
-module.exports = { register,login };
+
+exports.login = async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ where: { email } });
+        if (user && (await bcrypt.compare(password, user.password))) {
+            res.json({
+                success: true,
+                message: 'Login successful',
+                data: { id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user.id) }
+            });
+        } else {
+            res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+    } catch (error) { next(error); }
+};
+
+exports.getMe = async (req, res, next) => {
+    res.json({ success: true, data: req.user });
+};
