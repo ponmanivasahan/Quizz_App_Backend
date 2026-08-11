@@ -10,7 +10,20 @@ const config = require(__dirname + '/../config/config.json')[env];
 const db = {};
 
 let sequelize;
-if (config.use_env_variable) {
+
+// If a full connection string is provided, use it directly (Aiven provides this as 'Service URI')
+if (process.env.DATABASE_URL) {
+  console.log('Using DATABASE_URL for connection');
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'mysql',
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    }
+  });
+} else if (config.use_env_variable) {
   sequelize = new Sequelize(process.env[config.use_env_variable], config);
 } else {
   // Prefer explicit environment variables when available (from .env)
