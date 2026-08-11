@@ -42,6 +42,17 @@ if (config.use_env_variable) {
     database: dbName,
   });
 
+  // Aiven and many cloud providers require SSL. 
+  // Automatically enable SSL if we are connecting to a cloud provider
+  if (dbHost && (dbHost.includes('aivencloud') || dbHost.includes('render') || process.env.DB_SSL === 'true' || env === 'production')) {
+    sequelizeConfig.dialectOptions = {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false // Required for some cloud DBs without custom certs
+      }
+    };
+  }
+
   // Ensure Sequelize receives string credentials (defensive casting)
   sequelize = new Sequelize(String(dbName), String(dbUser), String(dbPass), sequelizeConfig);
 }
