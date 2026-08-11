@@ -17,11 +17,24 @@ exports.createQuestion = async (req, res, next) => {
 exports.getQuestions = async (req, res, next) => {
     try {
         const { quizId } = req.params;
+        const page = parseInt(req.query.page);
+        const limit = parseInt(req.query.limit);
+        
         const quiz = await Quiz.findByPk(quizId);
         if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
 
-        let questions = await Question.findAll({ where: { quizId } });
+        const queryOptions = { where: { quizId } };
         
+        let isPaginated = false;
+        if (!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
+            isPaginated = true;
+            queryOptions.limit = limit;
+            queryOptions.offset = (page - 1) * limit;
+        }
+
+        const { count, rows } = await Question.findAndCountAll(queryOptions);
+        
+        let questions = rows;
         // Strip correct answers for students
         if (req.user && req.user.role !== 'admin') {
             questions = questions.map(q => {
@@ -30,7 +43,20 @@ exports.getQuestions = async (req, res, next) => {
             });
         }
         
-        res.json({ success: true, data: questions });
+        if (isPaginated) {
+            res.json({
+                success: true,
+                data: questions,
+                pagination: {
+                    page,
+                    limit,
+                    total: count,
+                    totalPages: Math.ceil(count / limit)
+                }
+            });
+        } else {
+            res.json({ success: true, data: questions });
+        }
     } catch (error) { next(error); }
 };
 

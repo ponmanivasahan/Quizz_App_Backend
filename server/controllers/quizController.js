@@ -7,16 +7,33 @@ exports.createQuiz = async (req, res, next) => {
 };
 exports.getQuizzes = async (req, res, next) => {
     try {
-        const quizzes = await Quiz.findAll();
+        const { sequelize } = require('../models');
+        const quizzes = await Quiz.findAll({
+            attributes: {
+                include: [
+                    [sequelize.literal('(SELECT COUNT(*) FROM Questions WHERE Questions.quizId = Quiz.id)'), 'questionCount']
+                ]
+            }
+        });
         res.json({ success: true, data: quizzes });
     } catch (error) { next(error); }
 };
 exports.getQuiz = async (req, res, next) => {
     try {
-        const quiz = await Quiz.findByPk(req.params.id, { include: ['questions'] });
+        const { sequelize } = require('../models');
+        const quiz = await Quiz.findByPk(req.params.id, { 
+            include: ['questions'],
+            attributes: {
+                include: [
+                    [sequelize.literal('(SELECT COUNT(*) FROM Questions WHERE Questions.quizId = Quiz.id)'), 'questionCount']
+                ]
+            }
+        });
         if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
         
         const data = quiz.toJSON();
+        data.questionCount = quiz.getDataValue('questionCount') || data.questions.length;
+        
         if (req.user && req.user.role === 'student') {
             const { Attempt } = require('../models');
             const attemptsUsed = await Attempt.count({ where: { userId: req.user.id, quizId: quiz.id } });

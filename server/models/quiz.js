@@ -13,6 +13,7 @@ module.exports = (sequelize, DataTypes) => {
     description: DataTypes.TEXT,
     duration: { type: DataTypes.INTEGER, allowNull: false },
     totalMarks: { type: DataTypes.INTEGER, allowNull: false },
+    questionsPerAttempt: { type: DataTypes.INTEGER, defaultValue: 10 },
     status: { type: DataTypes.STRING, defaultValue: 'active' },
     createdBy: { type: DataTypes.INTEGER, allowNull: false }
   }, {

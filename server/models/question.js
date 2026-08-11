@@ -15,7 +15,8 @@ module.exports = (sequelize, DataTypes) => {
     optionC: { type: DataTypes.STRING, allowNull: false },
     optionD: { type: DataTypes.STRING, allowNull: false },
     correctAnswer: { type: DataTypes.STRING, allowNull: false },
-    marks: { type: DataTypes.INTEGER, defaultValue: 1 }
+    marks: { type: DataTypes.INTEGER, defaultValue: 1 },
+    difficulty: { type: DataTypes.STRING, defaultValue: 'Medium' }
   }, {
     sequelize,
     modelName: 'Question',

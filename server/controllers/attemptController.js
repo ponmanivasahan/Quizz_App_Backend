@@ -18,11 +18,39 @@ exports.startAttempt = async (req, res, next) => {
             userId: req.user.id,
             quizId: quiz.id,
             attemptNumber: previousAttemptsCount + 1,
-            totalMarks: quiz.totalMarks,
+            totalMarks: quiz.totalMarks, // Will be updated based on selected questions
             startedAt: new Date()
         });
         
-        const questions = quiz.questions.map(q => ({
+        // Shuffle and select questions
+        const shuffled = quiz.questions.sort(() => 0.5 - Math.random());
+        const perAttempt = quiz.questionsPerAttempt || 10;
+        const selectedQuestions = shuffled.slice(0, perAttempt);
+        
+        let dynamicTotalMarks = 0;
+        const attemptAnswersData = selectedQuestions.map(q => {
+            dynamicTotalMarks += q.marks;
+            return {
+                attemptId: attempt.id,
+                questionId: q.id,
+                selectedAnswer: null, // User hasn't answered yet
+                correctAnswer: q.correctAnswer, // Hidden from user
+                marksObtained: 0,
+                isCorrect: false
+            };
+        });
+        
+        // Pre-create the answer records
+        const { AttemptAnswer } = require('../models');
+        await AttemptAnswer.bulkCreate(attemptAnswersData);
+        
+        // Update attempt's total marks if it differs from default quiz totalMarks
+        if (dynamicTotalMarks !== attempt.totalMarks) {
+            attempt.totalMarks = dynamicTotalMarks;
+            await attempt.save();
+        }
+        
+        const questions = selectedQuestions.map(q => ({
             id: q.id, questionText: q.questionText, optionA: q.optionA, optionB: q.optionB, optionC: q.optionC, optionD: q.optionD, marks: q.marks
         }));
         
@@ -64,21 +92,22 @@ exports.submitAttempt = async (req, res, next) => {
         
         const answerPromises = [];
 
+        const existingAnswers = await AttemptAnswer.findAll({ where: { attemptId: attempt.id }, transaction: t });
+
         for (let ans of answers) {
+            const existingAnswer = existingAnswers.find(ea => ea.questionId === ans.questionId);
             const question = quiz.questions.find(q => q.id === ans.questionId);
-            if (question) {
-                const isCorrect = question.correctAnswer === ans.selectedAnswer;
+            
+            // Only process answers for questions that were assigned to this attempt
+            if (existingAnswer && question) {
+                const isCorrect = existingAnswer.correctAnswer === ans.selectedAnswer;
                 const marksObtained = isCorrect ? question.marks : 0;
                 score += marksObtained;
                 
-                answerPromises.push(AttemptAnswer.create({
-                    attemptId: attempt.id,
-                    questionId: question.id,
-                    selectedAnswer: ans.selectedAnswer,
-                    correctAnswer: question.correctAnswer,
-                    marksObtained,
-                    isCorrect
-                }, { transaction: t }));
+                existingAnswer.selectedAnswer = ans.selectedAnswer;
+                existingAnswer.marksObtained = marksObtained;
+                existingAnswer.isCorrect = isCorrect;
+                answerPromises.push(existingAnswer.save({ transaction: t }));
             }
         }
         
