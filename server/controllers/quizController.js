@@ -15,7 +15,17 @@ exports.getQuiz = async (req, res, next) => {
     try {
         const quiz = await Quiz.findByPk(req.params.id, { include: ['questions'] });
         if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
-        res.json({ success: true, data: quiz });
+        
+        const data = quiz.toJSON();
+        if (req.user && req.user.role === 'student') {
+            const { Attempt } = require('../models');
+            const attemptsUsed = await Attempt.count({ where: { userId: req.user.id, quizId: quiz.id } });
+            data.attemptsUsed = attemptsUsed;
+            data.maximumAttempts = 2;
+            data.attemptsRemaining = Math.max(0, 2 - attemptsUsed);
+        }
+        
+        res.json({ success: true, data });
     } catch (error) { next(error); }
 };
 exports.updateQuiz = async (req, res, next) => {

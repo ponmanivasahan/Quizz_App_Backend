@@ -134,16 +134,48 @@ async function runStudentTests() {
     console.log('✔ My attempts fetched.');
 
 
-    // 12. Student Analytics & Leaderboard
-    console.log('\n10. Fetch Analytics & Leaderboard...');
+    // 12. Attempt 2
+    console.log('\n10. Start Second Attempt (Should succeed)...');
+    const start2Res = await fetch(`${baseUrl}/attempts/start/${quizId}`, { method: 'POST', headers: { 'Authorization': `Bearer ${studentToken}` } });
+    const start2Data = await start2Res.json();
+    if (!start2Data.success || start2Data.data.attemptNumber !== 2) {
+        console.error('Start2 Failed with:', start2Data);
+        throw new Error('Failed to start Attempt 2');
+    }
+    console.log('✔ Attempt 2 started. AttemptNumber:', start2Data.data.attemptNumber);
+    
+    console.log('\n11. Submit Attempt 2...');
+    await fetch(`${baseUrl}/attempts/${start2Data.data.attemptId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${studentToken}` },
+        body: JSON.stringify({ answers: [] })
+    });
+    console.log('✔ Attempt 2 submitted.');
+    
+    // 13. Attempt 3
+    console.log('\n12. Start Third Attempt (Should fail with 409)...');
+    const start3Res = await fetch(`${baseUrl}/attempts/start/${quizId}`, { method: 'POST', headers: { 'Authorization': `Bearer ${studentToken}` } });
+    if (start3Res.status !== 409) throw new Error('Attempt 3 did not return 409 Conflict!');
+    const start3Data = await start3Res.json();
+    if (start3Data.success) throw new Error('Attempt 3 allowed incorrectly!');
+    console.log('✔ Attempt 3 securely blocked (409).');
+    
+    // 14. Quiz Details verification
+    const quizVerifyRes = await fetch(`${baseUrl}/quizzes/${quizId}`, { headers: { 'Authorization': `Bearer ${studentToken}` } });
+    const quizVerifyData = await quizVerifyRes.json();
+    if (quizVerifyData.data.attemptsRemaining !== 0) throw new Error('attemptsRemaining not 0');
+    console.log('✔ Quiz endpoint correctly reports 0 attempts remaining.');
+
+    // 15. Student Analytics & Leaderboard
+    console.log('\n13. Fetch Analytics & Leaderboard...');
     const perfRes = await fetch(`${baseUrl}/analytics/my-performance`, { headers: { 'Authorization': `Bearer ${studentToken}` } });
     const perfData = await perfRes.json();
     if (!perfData.success || perfData.data.highestScore !== 10) throw new Error('Analytics failed');
     
     const leadRes = await fetch(`${baseUrl}/leaderboard`, { headers: { 'Authorization': `Bearer ${studentToken}` } });
     const leadData = await leadRes.json();
-    if (!leadData.success || leadData.data.length === 0) throw new Error('Leaderboard failed');
-    console.log('✔ Analytics and Leaderboard generated successfully.');
+    if (!leadData.success || !leadData.data.leaderboard || !leadData.data.myRank) throw new Error('Leaderboard failed or missing myRank');
+    console.log('✔ Leaderboard fetched. myRank:', leadData.data.myRank);
 
     console.log('\n--- ALL STUDENT TESTS PASSED SUCCESSFULLY ---');
 }

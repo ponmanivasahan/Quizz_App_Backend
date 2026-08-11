@@ -11,6 +11,7 @@ module.exports = (sequelize, DataTypes) => {
   Attempt.init({
     userId: { type: DataTypes.INTEGER, allowNull: false },
     quizId: { type: DataTypes.INTEGER, allowNull: false },
+    attemptNumber: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     score: { type: DataTypes.INTEGER, defaultValue: 0 },
     totalMarks: { type: DataTypes.INTEGER, allowNull: false },
     percentage: { type: DataTypes.FLOAT, defaultValue: 0 },
@@ -20,6 +21,12 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'Attempt',
+    indexes: [
+      {
+        unique: true,
+        fields: ['userId', 'quizId', 'attemptNumber']
+      }
+    ]
   });
   return Attempt;
 };

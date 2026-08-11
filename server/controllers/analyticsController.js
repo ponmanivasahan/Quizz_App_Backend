@@ -40,12 +40,11 @@ exports.getLeaderboard = async (req, res, next) => {
     try {
         const users = await User.findAll({
             where: { role: 'student' },
-            attributes: ['id', 'name'],
             include: [{
                 model: Attempt,
                 as: 'attempts', // wait, does User haveMany Attempts in models? Need to ensure association exists! 
                 where: { status: 'Completed' },
-                required: false, // Include users even if they have 0 attempts? Usually leaderboard is only active users. Let's make it required: true
+                required: true, // Only users with completed attempts
                 attributes: []
             }],
             attributes: [
@@ -59,15 +58,24 @@ exports.getLeaderboard = async (req, res, next) => {
             order: [[sequelize.literal('averagePercentage'), 'DESC']]
         });
         
-        // Add ranks
-        const leaderboard = users.map((u, index) => ({
-            rank: index + 1,
-            name: u.name,
-            totalAttempts: u.getDataValue('totalAttempts'),
-            averageScore: u.getDataValue('averageScore') ? parseFloat(u.getDataValue('averageScore')).toFixed(2) : 0,
-            averagePercentage: u.getDataValue('averagePercentage') ? parseFloat(u.getDataValue('averagePercentage')).toFixed(2) : 0
-        }));
+        let myRank = null;
         
-        res.json({ success: true, data: leaderboard });
+        // Add ranks
+        const leaderboard = users.map((u, index) => {
+            const rank = index + 1;
+            if (req.user && u.id === req.user.id) myRank = rank;
+            return {
+                rank,
+                name: u.name,
+                totalAttempts: u.getDataValue('totalAttempts'),
+                averageScore: u.getDataValue('averageScore') ? parseFloat(u.getDataValue('averageScore')).toFixed(2) : 0,
+                averagePercentage: u.getDataValue('averagePercentage') ? parseFloat(u.getDataValue('averagePercentage')).toFixed(2) : 0
+            };
+        });
+        
+        const responseData = { leaderboard };
+        if (myRank !== null) responseData.myRank = myRank;
+        
+        res.json({ success: true, data: responseData });
     } catch (error) { next(error); }
 };
