@@ -8,8 +8,17 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
 
-app.use(cors());
+const corsOptions = {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+};
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', database: 'connected' });
+});
 
 // Set up routes
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -29,10 +38,28 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-sequelize.sync().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
-}).catch(err => {
-    console.error('Unable to connect to the database:', err);
-});
+// Proper startup sequence: authenticate -> sync -> listen
+async function startServer() {
+    try {
+        console.log('Connecting to database...');
+        await sequelize.authenticate();
+        console.log('Database connection established successfully.');
+
+        // Only sync models safely
+        if (process.env.NODE_ENV !== 'production') {
+            await sequelize.sync();
+            console.log('Database synced (development).');
+        } else {
+            console.log('Skipping destructive model sync in production.');
+        }
+
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    } catch (err) {
+        console.error('Unable to connect to the database:', err.message);
+        process.exit(1); // Fail clearly instead of keeping process hanging
+    }
+}
+
+startServer();

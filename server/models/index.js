@@ -10,12 +10,29 @@ const config = require(__dirname + '/../config/config.json')[env];
 const db = {};
 
 let sequelize;
+const isProduction = env === 'production';
 
-// If a full connection string is provided, use it directly (Aiven provides this as 'Service URI')
+// Fail-fast database validation for production
+if (isProduction && !process.env.DATABASE_URL) {
+  const requiredVars = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+  const missingVars = requiredVars.filter(v => !process.env[v]);
+  
+  if (missingVars.length > 0) {
+    console.error(`Database configuration is incomplete. Check DB_HOST, DB_PORT, DB_NAME, DB_USER and DB_PASSWORD. Missing: ${missingVars.join(', ')}`);
+    process.exit(1);
+  }
+  
+  if (process.env.DB_HOST === 'localhost' || process.env.DB_HOST === '127.0.0.1') {
+    console.error("Database configuration error: DO NOT USE LOCALHOST IN PRODUCTION. Provide a remote MySQL host.");
+    process.exit(1);
+  }
+}
+
 if (process.env.DATABASE_URL) {
-  console.log('Using DATABASE_URL for connection');
+  console.log('Database host: configured (using DATABASE_URL)');
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'mysql',
+    logging: false,
     dialectOptions: {
       ssl: {
         require: true,
@@ -24,28 +41,17 @@ if (process.env.DATABASE_URL) {
     }
   });
 } else if (config.use_env_variable) {
+  console.log('Database host: configured (using use_env_variable)');
   sequelize = new Sequelize(process.env[config.use_env_variable], config);
 } else {
-  // Prefer explicit environment variables when available (from .env)
   const dbName = process.env.DB_NAME !== undefined ? String(process.env.DB_NAME) : config.database;
   const dbUser = process.env.DB_USER !== undefined ? String(process.env.DB_USER) : config.username;
   const dbPass = process.env.DB_PASSWORD !== undefined ? String(process.env.DB_PASSWORD) : config.password;
   const dbHost = process.env.DB_HOST !== undefined ? String(process.env.DB_HOST) : config.host;
   const dbPort = process.env.DB_PORT !== undefined ? parseInt(process.env.DB_PORT, 10) : (config.port || 3306);
-  // Debug: show types and values used for DB connection
-  console.log('DB_CONN', {
-    dbName,
-    dbUser,
-    dbPass,
-    dbHost,
-    dbPort,
-    types: {
-      dbName: typeof dbName,
-      dbUser: typeof dbUser,
-      dbPass: typeof dbPass,
-      dbHost: typeof dbHost,
-    }
-  });
+  
+  console.log(`Database host: ${dbHost}`);
+  console.log(`Database name: ${dbName}`);
 
   const sequelizeConfig = Object.assign({}, config, {
     host: dbHost,
@@ -53,20 +59,18 @@ if (process.env.DATABASE_URL) {
     username: dbUser,
     password: dbPass,
     database: dbName,
+    logging: false
   });
 
-  // Aiven and many cloud providers require SSL. 
-  // Automatically enable SSL if we are connecting to a cloud provider
-  if (dbHost && (dbHost.includes('aivencloud') || dbHost.includes('render') || process.env.DB_SSL === 'true' || env === 'production')) {
+  if (dbHost && (dbHost.includes('aivencloud') || dbHost.includes('render') || process.env.DB_SSL === 'true' || isProduction)) {
     sequelizeConfig.dialectOptions = {
       ssl: {
         require: true,
-        rejectUnauthorized: false // Required for some cloud DBs without custom certs
+        rejectUnauthorized: false
       }
     };
   }
 
-  // Ensure Sequelize receives string credentials (defensive casting)
   sequelize = new Sequelize(String(dbName), String(dbUser), String(dbPass), sequelizeConfig);
 }
 
