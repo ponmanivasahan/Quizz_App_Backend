@@ -18,12 +18,14 @@ if (config.use_env_variable) {
   const dbUser = process.env.DB_USER !== undefined ? String(process.env.DB_USER) : config.username;
   const dbPass = process.env.DB_PASSWORD !== undefined ? String(process.env.DB_PASSWORD) : config.password;
   const dbHost = process.env.DB_HOST !== undefined ? String(process.env.DB_HOST) : config.host;
+  const dbPort = process.env.DB_PORT !== undefined ? parseInt(process.env.DB_PORT, 10) : (config.port || 3306);
   // Debug: show types and values used for DB connection
   console.log('DB_CONN', {
     dbName,
     dbUser,
     dbPass,
     dbHost,
+    dbPort,
     types: {
       dbName: typeof dbName,
       dbUser: typeof dbUser,
@@ -34,6 +36,7 @@ if (config.use_env_variable) {
 
   const sequelizeConfig = Object.assign({}, config, {
     host: dbHost,
+    port: dbPort,
     username: dbUser,
     password: dbPass,
     database: dbName,
