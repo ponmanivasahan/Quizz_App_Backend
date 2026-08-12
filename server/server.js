@@ -9,7 +9,7 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 const app = express();
 
 const corsOptions = {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true
 };
 app.use(cors(corsOptions));
