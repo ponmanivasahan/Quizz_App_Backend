@@ -46,13 +46,9 @@ async function startServer() {
         await sequelize.authenticate();
         console.log('Database connection established successfully.');
 
-        // Only sync models safely
-        if (process.env.NODE_ENV !== 'production') {
-            await sequelize.sync();
-            console.log('Database synced (development).');
-        } else {
-            console.log('Skipping destructive model sync in production.');
-        }
+        // Ensure database tables exist
+        await sequelize.sync();
+        console.log('Database synced successfully.');
 
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server running on port ${PORT}`);
