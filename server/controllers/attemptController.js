@@ -153,8 +153,16 @@ exports.getAttemptById = async (req, res, next) => {
     try {
         const attempt = await Attempt.findByPk(req.params.attemptId, {
             include: [
-                { model: Quiz, as: 'quiz', attributes: ['title'] },
-                { model: AttemptAnswer, as: 'answers', attributes: ['isCorrect'] }
+                { model: Quiz, as: 'quiz', attributes: ['title', 'duration'] },
+                { 
+                    model: AttemptAnswer, 
+                    as: 'answers', 
+                    include: [{
+                        model: Question,
+                        as: 'question',
+                        attributes: ['id', 'questionText', 'optionA', 'optionB', 'optionC', 'optionD', 'marks']
+                    }]
+                }
             ]
         });
         if (!attempt || attempt.userId !== req.user.id) {
@@ -172,7 +180,9 @@ exports.getAttemptById = async (req, res, next) => {
         }
         
         const data = {
+            quizId: attempt.quizId,
             quizTitle: attempt.quiz ? attempt.quiz.title : 'Unknown',
+            duration: attempt.quiz ? attempt.quiz.duration : 30,
             attemptNumber: attempt.attemptNumber,
             score: attempt.score,
             totalMarks: attempt.totalMarks,
@@ -180,8 +190,15 @@ exports.getAttemptById = async (req, res, next) => {
             correctCount,
             incorrectCount,
             submittedAt: attempt.submittedAt,
-            status: attempt.status
+            status: attempt.status,
+            startedAt: attempt.startedAt
         };
+        
+        if (attempt.status === 'In Progress' && attempt.answers) {
+            data.questions = attempt.answers
+                .map(ans => ans.question)
+                .filter(Boolean); // Only include valid questions
+        }
         
         res.json({ success: true, data });
     } catch (error) { next(error); }

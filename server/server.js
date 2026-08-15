@@ -28,6 +28,7 @@ app.use('/api/questions', require('./routes/questionRoutes'));
 app.use('/api/attempts', require('./routes/attemptRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/leaderboard', require('./routes/leaderboardRoutes'));
+app.use('/api/admin/leaderboard', require('./routes/adminLeaderboardRoutes'));
 
 app.get('/', (req, res) => {
     res.send('Quiz API is running...');
