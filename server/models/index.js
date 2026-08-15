@@ -28,36 +28,30 @@ if (isProduction && !process.env.DATABASE_URL) {
   }
 }
 
-if (process.env.DATABASE_URL) {
-  let dbUrl = process.env.DATABASE_URL;
-  // Strip any query parameters (like ?ssl-mode=REQUIRED) so they don't override our dialectOptions
-  if (dbUrl.includes('?')) {
-      dbUrl = dbUrl.split('?')[0]; 
+  let dbName = config.database;
+  let dbUser = config.username;
+  let dbPass = config.password;
+  let dbHost = config.host;
+  let dbPort = config.port || 3306;
+
+  if (process.env.DATABASE_URL) {
+    // Manually parse DATABASE_URL to avoid Sequelize parsing quirks and SSL drops
+    const dbUrl = new URL(process.env.DATABASE_URL);
+    dbHost = dbUrl.hostname;
+    dbPort = dbUrl.port ? parseInt(dbUrl.port, 10) : 3306;
+    dbUser = dbUrl.username;
+    dbPass = dbUrl.password;
+    dbName = dbUrl.pathname.replace('/', '');
+    console.log('Database host: configured (Parsed from DATABASE_URL)');
+  } else {
+    if (process.env.DB_NAME !== undefined) dbName = String(process.env.DB_NAME);
+    if (process.env.DB_USER !== undefined) dbUser = String(process.env.DB_USER);
+    if (process.env.DB_PASSWORD !== undefined) dbPass = String(process.env.DB_PASSWORD);
+    if (process.env.DB_HOST !== undefined) dbHost = String(process.env.DB_HOST);
+    if (process.env.DB_PORT !== undefined) dbPort = parseInt(process.env.DB_PORT, 10);
+    console.log(`Database host: ${dbHost}`);
+    console.log(`Database name: ${dbName}`);
   }
-  
-  console.log('Database host: configured (using DATABASE_URL with explicit SSL)');
-  sequelize = new Sequelize(dbUrl, {
-    dialect: 'mysql',
-    logging: false,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
-      }
-    }
-  });
-} else if (config.use_env_variable) {
-  console.log('Database host: configured (using use_env_variable)');
-  sequelize = new Sequelize(process.env[config.use_env_variable], config);
-} else {
-  const dbName = process.env.DB_NAME !== undefined ? String(process.env.DB_NAME) : config.database;
-  const dbUser = process.env.DB_USER !== undefined ? String(process.env.DB_USER) : config.username;
-  const dbPass = process.env.DB_PASSWORD !== undefined ? String(process.env.DB_PASSWORD) : config.password;
-  const dbHost = process.env.DB_HOST !== undefined ? String(process.env.DB_HOST) : config.host;
-  const dbPort = process.env.DB_PORT !== undefined ? parseInt(process.env.DB_PORT, 10) : (config.port || 3306);
-  
-  console.log(`Database host: ${dbHost}`);
-  console.log(`Database name: ${dbName}`);
 
   const sequelizeConfig = Object.assign({}, config, {
     host: dbHost,
@@ -68,6 +62,7 @@ if (process.env.DATABASE_URL) {
     logging: false
   });
 
+  // Aiven and other cloud providers require SSL.
   if (dbHost && (dbHost.includes('aivencloud') || dbHost.includes('render') || process.env.DB_SSL === 'true' || isProduction)) {
     sequelizeConfig.dialectOptions = {
       ssl: {
@@ -78,7 +73,6 @@ if (process.env.DATABASE_URL) {
   }
 
   sequelize = new Sequelize(String(dbName), String(dbUser), String(dbPass), sequelizeConfig);
-}
 
 fs
   .readdirSync(__dirname)
