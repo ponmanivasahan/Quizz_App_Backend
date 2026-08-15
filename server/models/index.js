@@ -43,6 +43,11 @@ if (isProduction && !process.env.DATABASE_URL) {
     dbPass = dbUrl.password;
     dbName = dbUrl.pathname.replace('/', '');
     console.log('Database host: configured (Parsed from DATABASE_URL)');
+
+    if (isProduction && (dbHost === 'localhost' || dbHost === '127.0.0.1')) {
+      console.error("CRITICAL ERROR: Your DATABASE_URL contains 'localhost' or '127.0.0.1'. You CANNOT use your local database URL on Render. You MUST paste your AIVEN Service URI into DATABASE_URL.");
+      process.exit(1);
+    }
   } else {
     if (process.env.DB_NAME !== undefined) dbName = String(process.env.DB_NAME);
     if (process.env.DB_USER !== undefined) dbUser = String(process.env.DB_USER);
