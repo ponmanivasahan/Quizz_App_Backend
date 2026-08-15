@@ -57,8 +57,11 @@ async function startServer() {
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server running on port ${PORT}`);
         });
-    } catch (err) {
-        console.error('Unable to connect to the database:', err.message);
+    } catch (error) {
+        console.error("Unable to connect to the database:");
+        console.error("Error message:", error.message);
+        console.error("Error code:", error.code);
+        console.error("Full error:", error);
         process.exit(1); // Fail clearly instead of keeping process hanging
     }
 }
