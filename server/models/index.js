@@ -29,8 +29,14 @@ if (isProduction && !process.env.DATABASE_URL) {
 }
 
 if (process.env.DATABASE_URL) {
-  console.log('Database host: configured (using DATABASE_URL)');
-  sequelize = new Sequelize(process.env.DATABASE_URL, {
+  let dbUrl = process.env.DATABASE_URL;
+  // Strip any query parameters (like ?ssl-mode=REQUIRED) so they don't override our dialectOptions
+  if (dbUrl.includes('?')) {
+      dbUrl = dbUrl.split('?')[0]; 
+  }
+  
+  console.log('Database host: configured (using DATABASE_URL with explicit SSL)');
+  sequelize = new Sequelize(dbUrl, {
     dialect: 'mysql',
     logging: false,
     dialectOptions: {
