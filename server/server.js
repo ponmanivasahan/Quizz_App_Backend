@@ -50,7 +50,7 @@ async function startServer() {
         await sequelize.sync();
         console.log('Database synced successfully.');
 
-        // Seed admin user if it doesn't exist
+        // Seed admin user if it doesn't exist, or force role to admin
         const bcrypt = require('bcryptjs');
         const adminEmail = 'admin123@gmail.com';
         const adminExists = await User.findOne({ where: { email: adminEmail } });
@@ -64,6 +64,10 @@ async function startServer() {
                 role: 'admin'
             });
             console.log('Admin user seeded successfully.');
+        } else if (adminExists.role !== 'admin') {
+            adminExists.role = 'admin';
+            await adminExists.save();
+            console.log('Admin user role updated to admin.');
         }
 
         app.listen(PORT, '0.0.0.0', () => {
