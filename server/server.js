@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 dotenv.config();
-const { sequelize } = require('./models');
+const { sequelize, User } = require('./models');
 const { errorHandler } = require('./middleware/errorMiddleware');
 
 
@@ -49,6 +49,22 @@ async function startServer() {
         // Ensure database tables exist
         await sequelize.sync();
         console.log('Database synced successfully.');
+
+        // Seed admin user if it doesn't exist
+        const bcrypt = require('bcryptjs');
+        const adminEmail = 'admin123@gmail.com';
+        const adminExists = await User.findOne({ where: { email: adminEmail } });
+        if (!adminExists) {
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash('12345', salt);
+            await User.create({
+                name: 'Admin User',
+                email: adminEmail,
+                password: hashedPassword,
+                role: 'admin'
+            });
+            console.log('Admin user seeded successfully.');
+        }
 
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server running on port ${PORT}`);
